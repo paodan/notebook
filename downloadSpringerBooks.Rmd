@@ -1,0 +1,88 @@
+---
+title: "Batch Downloading Springer Free Books Using R"
+author: Weiyang Tao (weiyangtao1513@gmail.com)
+date: "`r Sys.Date()`"
+output: 
+  BiocStyle::html_document:
+    highlight: pygments
+    toc: true
+    fig_width: 5
+    number_sections: true
+---
+- - - - 
+```{r, global_options, echo=FALSE, results="hide", eval=TRUE}
+knitr::opts_chunk$set(collapse = TRUE, 
+                      comment = "#>", 
+                      fig.width = 5, 
+                      fig.height = 4.5, 
+                      fig.align = "center",
+                      echo=TRUE, 
+                      warning=FALSE, 
+                      message=TRUE, 
+                      tidy.opts=list(width.cutoff=80), 
+                      tidy=FALSE)
+rm(list = ls())
+gc(reset = TRUE)
+options(max.print = 200, width = 110)
+```
+
+# Introduction
+[Springer](https://www.springer.com/) offers us many free books.
+[Springer](https://www.springer.com/)  is part of Springer Nature, a global 
+publisher that serves and supports the research community. It offers hundreds 
+of thousands of books, part of which can be downloaded free. This note is to
+show how to batch download about 400 free books using R.
+
+# Loading libraries
+```{r}
+library(stringr)
+library(httr)
+```
+
+# Reading the book URLs
+A txt file called "SpringerBookURL.txt" is saved in 
+[rawData](https://github.com/paodan/notebook/rawData). If you have 
+clone/download the whole [notebook](https://github.com/paodan/notebook)
+repository, you can run the following R code.
+```{r}
+x = read.csv("rawData/SpringerBookURL.txt", sep = "\t")
+head(x)
+```
+
+The URLs listed above are the introduction pages of books. for example, the 
+[URL](http://link.springer.com/openurl?genre=book&isbn=978-0-387-28117-9) of 
+Developmental Neurobiology is:
+http://link.springer.com/openurl?genre=book&isbn=978-0-387-28117-9,
+while it's PDF downloading page is:
+https://link.springer.com/content/pdf/10.1007%2F0-387-28117-7.pdf.
+
+It seems there is no pattern between the two URLs. 
+Actually http://link.springer.com/openurl?genre=book&isbn=978-0-387-28117-9 has 
+been redirected to https://link.springer.com/book/10.1007%2F0-387-28117-7.
+Then you can find the pattern of the pdf file URL and the introduction URL.
+
+What you need to do is to use `httr` package to find the redirected URL.
+
+# Batch downloading
+By Running the following R code, you can download all books (roughly 8.5GB) to
+`SpringerBooks` folder in you current working directory according to the 
+`SpringerBookURL.txt` file.
+```{r, eval=FALSE}
+folder = "SpringerBooks"
+dir.create(folder)
+for(mi in seq_along(x$OpenURL)){
+  cat(mi, ": ")
+  # To get the real book URL
+  url = GET(x$OpenURL[mi])$url
+  
+  # To get the pdf URL
+  URL = paste0(sub("book", "content/pdf", url), ".pdf")
+  
+  # File name
+  pdfFile = paste0(folder, "/", mi, "_", x$Book.Title[mi], ".pdf")
+  
+  # Download pdf file
+  try(download.file(URL, pdfFile), silent = TRUE)
+}
+```
+

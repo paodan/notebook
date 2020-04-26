@@ -1,0 +1,242 @@
+---
+title: "R S3/S4 class/object"
+author: Weiyang Tao (weiyangtao1513@gmail.com)
+date: "`r Sys.Date()`"
+output: 
+  BiocStyle::html_document:
+    highlight: pygments
+    toc: true
+    fig_width: 5
+    number_sections: true
+---
+```{r, global_options, echo=FALSE, results="hide", eval=TRUE}
+knitr::opts_chunk$set(collapse = TRUE, 
+                      comment = "#>", 
+                      fig.width = 5, 
+                      fig.height = 4.5, 
+                      fig.align = "center",
+                      echo=TRUE, 
+                      warning=FALSE, 
+                      message=TRUE, 
+                      tidy.opts=list(width.cutoff=80), 
+                      tidy=FALSE)
+rm(list = ls())
+gc(reset = TRUE)
+options(max.print = 200, width = 110)
+```
+# Object
+Everything in R is an object.
+
+```{r}
+a = 1
+b = "character"
+c = function(x) x
+d = NULL
+e = TRUE
+
+```
+
+
+# Class
+
+```{r}
+a = 1:10
+str(a)
+class(a) = "classA"
+str(a)
+```
+
+
+# S3 class/object
+
+```{r}
+rm(list = ls( all.names = TRUE))
+b0 = c("a", "b", "c")
+str(b0)
+
+objectB = structure(c("a", "b", "c"), class = "classB")
+str(objectB)
+```
+Let's print objectB using "print" function.
+```{r}
+print(objectB)
+```
+
+
+# S3 function/method
+
+Create an S3 method for an existing S3 generic
+```{r}
+print.classB = function(x){
+  cat("This is a classB object\n")
+  print.default(x)
+}
+print.classB(objectB)
+```
+
+
+Let's print objectB using "print" function again.
+```{r}
+print(objectB) # the same as print.classB
+```
+
+
+If you want to create an S3 method from scratch, then you have to create an 
+S3 generic first.
+```{r}
+myS3Generic = function(x) {
+  UseMethod("myS3Generic") # myS3Generic is whatever name
+  }
+```
+
+Then define the methods on specific classes.
+```{r}
+myS3Generic.character = function(x){
+  cat("character:", x)
+}
+
+myS3Generic.numeric = function(x){
+  cat("numeric:", x)
+}
+
+myS3Generic("asdfasf")
+myS3Generic(pi)
+```
+
+
+
+# S4 class
+
+```{r}
+ls(all.names = T)
+rm(list = ls( all.names = TRUE))
+setClass(Class = "Class4", 
+         representation = representation(first = "numeric",
+                                         second = "character"))
+ls(all.names = T)
+.__C__Class4
+str(.__C__Class4)
+```
+
+
+# S4 object
+Create an S4 object using the default values
+```{r}
+# Using the default values
+new("Class4")
+```
+
+
+Create an S4 object using the default values
+```{r}
+# Using the default values
+object4 = new("Class4", first = 1:5, second = letters)
+object4
+```
+
+
+Set Generic
+```{r}
+setGeneric(name = "fun", def = function(object, ...) standardGeneric("fun"))
+```
+
+
+What code is in function "fun"?
+```{r}
+fun
+```
+
+
+Can we apply function "fun" on "object4"?
+```{r, eval=FALSE}
+fun(object4)
+```
+
+# Define a method for object4
+```{r}
+# "object" argument in the function must be the same as in the generic
+setMethod(f = "fun", signature = signature("Class4"), 
+          definition = function(object){
+            cat("first:\n")
+            cat(object@first, "\n\n")
+            cat("second:\n")
+            cat(object@second, "\n")
+          })
+```
+
+
+Can we use "fun" on "object4" now?
+```{r}
+fun(object4)
+```
+
+
+What code is in function "fun" now?
+```{r}
+fun
+```
+*The same code!! *
+- - - - - 
+
+# Can we get the code of a method?
+
+```{r}
+# devtools::install_github("paodan/funcTools")
+library(funcTools)
+tmp = funCode(fun)
+tmp@fS4@fcn$Class4
+```
+
+
+Let's see if it is the same output as function "fun" itself.
+```{r}
+print(tmp@fS4@fcn$Class4)
+tmp@fS4@fcn$Class4(object4)
+```
+
+```{r}
+fun(object4)
+```
+
+# Where is the S3 method actually stored?
+To understand where S4 methods are stored, let's start by an S3 method.
+```{r}
+print.classB = function(x){
+  cat("This is a classB object\n")
+  print.default(x)
+}
+environment(print.classB)
+```
+The environment of print.classB is global environment.
+
+
+What about an S4 function?
+```{r}
+env = environment(fun)
+env
+```
+"env" is not the global environment.
+
+
+But the parent environment of "env" is.
+```{r}
+parent.env(env)
+```
+
+
+The methods are stored in the '.MTable' or '.AllMTable' variable of 
+the 'env' environment.
+```{r}
+envMTable = get(".MTable", envir = environment(fun))
+envMTable
+```
+
+
+The "envMTable" is an environment of methods. And you can transform it to a
+list of functions.
+
+```{r}
+envList = as.list(envMTable)
+envList
+```
+
